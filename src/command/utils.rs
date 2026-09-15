@@ -109,6 +109,14 @@ pub fn get_new_config_contents(players: HashMap<String, PlayerCacheEntry>) -> St
     new_config
 }
 
+pub fn get_new_config_contents_blacklist(players: &Vec<String>) -> String {
+    let mut new_config = String::new();
+    for player in players {
+        new_config = format!("{}\n{}", new_config, player);
+    }
+    new_config
+}
+
 pub async fn remove_runner_pings(
     ctx: &Context,
     guild_id: &GuildId,

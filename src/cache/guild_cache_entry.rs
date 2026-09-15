@@ -23,6 +23,7 @@ pub struct GuildCacheEntry {
     pub lb_channel: Option<ChannelId>,
     pub player_whitelist: HashMap<String, PlayerCacheEntry>,
     pub roles: Vec<RoleCacheEntry>,
+    pub player_blacklist: Vec<String>,
 }
 
 impl GuildCacheEntry {

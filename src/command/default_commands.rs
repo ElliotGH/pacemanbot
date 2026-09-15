@@ -1,3 +1,5 @@
+#[path = "blacklist.rs"]
+mod blacklist;
 #[path = "remove_pb_roles.rs"]
 mod remove_pb_roles;
 #[path = "remove_roles.rs"]
@@ -21,6 +23,7 @@ mod whitelist_uuid;
 
 use crate::command::Command;
 
+use blacklist::BLACKLIST;
 use remove_pb_roles::REMOVE_PB_ROLES;
 use remove_roles::REMOVE_ROLES;
 use send_message::SEND_MESSAGE;
@@ -44,5 +47,6 @@ pub fn get_default_commands() -> Vec<&'static dyn Command> {
         &VALIDATE_CONFIG,
         &REMOVE_ROLES,
         &REMOVE_PB_ROLES,
+        &BLACKLIST,
     ];
 }

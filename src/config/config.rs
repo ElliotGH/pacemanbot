@@ -9,9 +9,10 @@ use crate::{
     cache::{GuildCacheEntry, PlayerCacheEntry, RoleCacheEntry, Split},
     config::{
         extract_name_or_uuid_and_splits_from_config_line, extract_split_from_pb_role_name,
-        extract_split_from_role_name, extract_splits_and_name_from_role_name, PACEMANBOT_CHANNEL,
-        PACEMANBOT_RUNNER_LEADERBOARD_CHANNEL, PACEMANBOT_RUNNER_NAMES_CHANNEL, ROLE_PREFIX,
-        ROLE_PREFIX_115, ROLE_PREFIX_17, ROLE_PREFIX_AA,
+        extract_split_from_role_name, extract_splits_and_name_from_role_name,
+        PACEMANBOT_BLACKLIST_CHANNEL, PACEMANBOT_CHANNEL, PACEMANBOT_RUNNER_LEADERBOARD_CHANNEL,
+        PACEMANBOT_RUNNER_NAMES_CHANNEL, ROLE_PREFIX, ROLE_PREFIX_115, ROLE_PREFIX_17,
+        ROLE_PREFIX_AA,
     },
 };
 
@@ -106,12 +107,39 @@ impl Config {
             };
             roles.push(role_data);
         }
+
+        let mut blacklist: Vec<String> = vec![];
+        let blacklist_channel = channels
+            .iter()
+            .find(|c| c.name == PACEMANBOT_BLACKLIST_CHANNEL)
+            .unwrap();
+        let messages = blacklist_channel
+            .messages(&ctx.http, |m| m.limit(1))
+            .await?;
+        let first_message = match messages.last() {
+            Some(msg) => msg,
+            None => {
+                return Err(format!(
+                    "failed to get first message from #{} in guild name: {}.",
+                    PACEMANBOT_BLACKLIST_CHANNEL, name
+                )
+                .into())
+            }
+        };
+        for line in first_message.content.split("\n") {
+            if line == "```" || line == "" {
+                continue;
+            }
+            blacklist.push(line.to_lowercase());
+        }
+
         Ok(GuildCacheEntry {
             name,
             pace_channel,
             lb_channel,
             player_whitelist: players,
             roles,
+            player_blacklist: blacklist,
         })
     }
 

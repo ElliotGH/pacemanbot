@@ -71,29 +71,7 @@ impl Dispatcher {
         for (guild_id, guild_cache_entry) in locked_cache.entries.iter_mut() {
             let live_link = match self.ws_response.user.live_account.to_owned() {
                 Some(live_account) => format!("{}{}", TWITCH_LINK_PREFIX, live_account),
-                None => {
-                    if !match GuildCacheEntry::is_private(
-                        guild_cache_entry.name.to_string(),
-                        self.ctx.clone(),
-                        guild_id,
-                    ) {
-                        Ok(is_private) => is_private,
-                        Err(err) => {
-                            self.log.warn(err.to_string().as_str());
-                            continue;
-                        }
-                    } {
-                        self.log.warn(
-                            format!(
-                                "Skipping guild: '{}' because user with name: '{}' is not live.",
-                                guild_cache_entry.name, self.ws_response.nickname,
-                            )
-                            .as_str(),
-                        );
-                        continue;
-                    }
-                    "".to_string()
-                }
+                None => "".to_string(),
             };
             let mut author = self.partial_author.clone();
             if live_link.is_empty() {
@@ -109,15 +87,30 @@ impl Dispatcher {
                 Ok(is_private) => is_private,
                 Err(err) => return Err(err.into()),
             };
-            let has_player_ign = guild_cache_entry
+
+            // blacklist check
+            let bl_has_player_ign = guild_cache_entry
+                .player_blacklist
+                .iter()
+                .any(|p| p == &self.ws_response.nickname.to_lowercase());
+            let bl_has_player_uuid = guild_cache_entry
+                .player_blacklist
+                .iter()
+                .any(|p| p == &self.ws_response.user.uuid);
+            if bl_has_player_ign || bl_has_player_uuid {
+                continue;
+            }
+
+            // whitelist check
+            let wl_has_player_ign = guild_cache_entry
                 .player_whitelist
                 .iter()
                 .any(|p| p.0 == &self.ws_response.nickname.to_lowercase());
-            let has_player_uuid = guild_cache_entry
+            let wl_has_player_uuid = guild_cache_entry
                 .player_whitelist
                 .iter()
                 .any(|p| p.0 == &self.ws_response.user.uuid);
-            if !has_player_ign && !has_player_uuid {
+            if !wl_has_player_ign && !wl_has_player_uuid {
                 if is_private {
                     self.log.warn(format!(
                         "Skipping guild because player name: {} is not in the runners channel for guild name: {}", 
@@ -132,6 +125,7 @@ impl Dispatcher {
                     player_data,
                 );
             }
+
             match event_type {
                 EventType::Unknown => {
                     self.log.warn(
@@ -151,7 +145,7 @@ impl Dispatcher {
                             last_event,
                             guild_cache_entry,
                             is_private,
-                            has_player_uuid,
+                            wl_has_player_uuid,
                         )
                         .await
                     {
@@ -167,7 +161,7 @@ impl Dispatcher {
                             last_event,
                             guild_cache_entry,
                             is_private,
-                            has_player_uuid,
+                            wl_has_player_uuid,
                         )
                         .await
                     {
@@ -526,7 +520,7 @@ impl Dispatcher {
                     if !live_link.is_empty() {
                         e.field(format!("{} {}", TWITCH_EMOJI, live_link.clone()), "", false);
                     } else {
-                        e.field(format!("{}  Offline", OFFLINE_EMOJI), "", false);
+                        e.field(format!("{}  Gatekeeping", OFFLINE_EMOJI), "", false);
                     }
                     e.field("Splits", format!("[Link]({})", self.stats_link), true);
                     e.field(
